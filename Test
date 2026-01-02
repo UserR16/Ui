@@ -1,222 +1,182 @@
-local UILib = {}
+--// Mobile UI Library
+local Lib = {}
+
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
 
-function UILib:CreateWindow(title)
-    local Player = Players.LocalPlayer
+--// THEME
+Lib.Theme = {
+    BG = Color3.fromRGB(18,18,18),
+    Side = Color3.fromRGB(14,14,14),
+    Box = Color3.fromRGB(25,25,25),
+    Accent = Color3.fromRGB(255,60,60),
+    Text = Color3.fromRGB(230,230,230)
+}
 
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+--// CREATE WINDOW
+function Lib:CreateWindow(titleText)
+    local gui = Instance.new("ScreenGui", player.PlayerGui)
+    gui.Name = "MobileUILib"
+    gui.ResetOnSpawn = false
 
-    local Main = Instance.new("Frame")
-    Main.Size = UDim2.new(0, 500, 0, 350)
-    Main.Position = UDim2.new(0.5, -250, 0.5, -175)
-    Main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    Main.Parent = ScreenGui
-    Main.Active = true
-    Main.Draggable = true
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.fromScale(0.85,0.7)
+    main.Position = UDim2.fromScale(0.5,0.5)
+    main.AnchorPoint = Vector2.new(0.5,0.5)
+    main.BackgroundColor3 = self.Theme.BG
+    main.Active = true
 
-    local Top = Instance.new("TextLabel")
-    Top.Size = UDim2.new(1,0,0,40)
-    Top.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    Top.Text = "  "..(title or "UI Library")
-    Top.TextXAlignment = Enum.TextXAlignment.Left
-    Top.TextColor3 = Color3.new(1,1,1)
-    Top.Font = Enum.Font.GothamBold
-    Top.TextSize = 16
-    Top.Parent = Main
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
+    Instance.new("UIStroke", main).Color = self.Theme.Accent
 
-    local TabsFrame = Instance.new("Frame")
-    TabsFrame.Size = UDim2.new(0,120,1,-40)
-    TabsFrame.Position = UDim2.new(0,0,0,40)
-    TabsFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    TabsFrame.Parent = Main
+    -- Drag mobile
+    do
+        local drag, start, pos
+        main.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch then
+                drag = true
+                start = i.Position
+                pos = main.Position
+            end
+        end)
+        UIS.InputChanged:Connect(function(i)
+            if drag and i.UserInputType == Enum.UserInputType.Touch then
+                local d = i.Position - start
+                main.Position = UDim2.new(
+                    pos.X.Scale,pos.X.Offset+d.X,
+                    pos.Y.Scale,pos.Y.Offset+d.Y
+                )
+            end
+        end)
+        UIS.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch then drag = false end
+        end)
+    end
 
-    local TabsLayout = Instance.new("UIListLayout", TabsFrame)
-    TabsLayout.Padding = UDim.new(0,4)
+    -- Sidebar
+    local side = Instance.new("Frame", main)
+    side.Size = UDim2.fromScale(0.25,1)
+    side.BackgroundColor3 = self.Theme.Side
+    Instance.new("UICorner", side).CornerRadius = UDim.new(0,14)
 
-    local Pages = Instance.new("Frame")
-    Pages.Size = UDim2.new(1,-120,1,-40)
-    Pages.Position = UDim2.new(0,120,0,40)
-    Pages.BackgroundTransparency = 1
-    Pages.Parent = Main
+    local title = Instance.new("TextLabel", side)
+    title.Size = UDim2.new(1,0,0,50)
+    title.Text = titleText or "UI Library"
+    title.TextColor3 = self.Theme.Accent
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 20
+    title.BackgroundTransparency = 1
+
+    local content = Instance.new("Frame", main)
+    content.Position = UDim2.fromScale(0.25,0)
+    content.Size = UDim2.fromScale(0.75,1)
+    content.BackgroundTransparency = 1
 
     local Window = {}
+    Window.Tabs = {}
+    Window.CurrentTab = nil
 
-    function Window:CreateTab(name)
-        local TabBtn = Instance.new("TextButton")
-        TabBtn.Size = UDim2.new(1,0,0,32)
-        TabBtn.Text = name
-        TabBtn.Font = Enum.Font.Gotham
-        TabBtn.TextSize = 14
-        TabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-        TabBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-        TabBtn.Parent = TabsFrame
+    -- ADD TAB
+    function Window:AddTab(name)
+        local btn = Instance.new("TextButton", side)
+        btn.Size = UDim2.new(1,-10,0,40)
+        btn.Position = UDim2.new(0,5,0,60 + (#Window.Tabs*45))
+        btn.Text = name
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 14
+        btn.TextColor3 = Lib.Theme.Text
+        btn.BackgroundColor3 = Lib.Theme.Box
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
-        local Page = Instance.new("ScrollingFrame")
-        Page.Size = UDim2.new(1,0,1,0)
-        Page.ScrollBarImageTransparency = 1
-        Page.CanvasSize = UDim2.new(0,0,0,0)
-        Page.Visible = false
-        Page.Parent = Pages
+        local page = Instance.new("ScrollingFrame", content)
+        page.Size = UDim2.fromScale(1,1)
+        page.CanvasSize = UDim2.new(0,0,2,0)
+        page.ScrollBarImageTransparency = 1
+        page.Visible = false
 
-        local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0,8)
+        local layout = Instance.new("UIListLayout", page)
+        layout.Padding = UDim.new(0,10)
 
-        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.new(0,0,0,PageLayout.AbsoluteContentSize.Y + 10)
-        end)
-
-        TabBtn.MouseButton1Click:Connect(function()
-            for _,v in pairs(Pages:GetChildren()) do
-                if v:IsA("ScrollingFrame") then
-                    v.Visible = false
-                end
+        btn.MouseButton1Click:Connect(function()
+            if Window.CurrentTab then
+                Window.CurrentTab.Page.Visible = false
             end
-            Page.Visible = true
+            page.Visible = true
+            Window.CurrentTab = {Page = page}
         end)
 
-        if #Pages:GetChildren() == 1 then
-            Page.Visible = true
+        if not Window.CurrentTab then
+            page.Visible = true
+            Window.CurrentTab = {Page = page}
         end
 
         local Tab = {}
 
-        function Tab:CreateGroupbox(title)
-            local Box = Instance.new("Frame")
-            Box.Size = UDim2.new(1,-10,0,40)
-            Box.BackgroundColor3 = Color3.fromRGB(30,30,30)
-            Box.Parent = Page
+        -- TOGGLE
+        function Tab:AddToggle(text, callback)
+            local t = Instance.new("TextButton", page)
+            t.Size = UDim2.new(1,-40,0,40)
+            t.Text = text.." : OFF"
+            t.BackgroundColor3 = Lib.Theme.Box
+            t.TextColor3 = Lib.Theme.Text
+            t.Font = Enum.Font.Gotham
+            t.TextSize = 14
+            Instance.new("UICorner", t).CornerRadius = UDim.new(0,8)
 
-            local Stroke = Instance.new("UIStroke", Box)
-            Stroke.Color = Color3.fromRGB(60,60,60)
-
-            local Label = Instance.new("TextLabel")
-            Label.Size = UDim2.new(1,-10,0,25)
-            Label.Position = UDim2.new(0,5,0,0)
-            Label.BackgroundTransparency = 1
-            Label.Text = title
-            Label.TextXAlignment = Left
-            Label.Font = Enum.Font.GothamBold
-            Label.TextSize = 14
-            Label.TextColor3 = Color3.new(1,1,1)
-            Label.Parent = Box
-
-            local Content = Instance.new("Frame")
-            Content.Position = UDim2.new(0,5,0,28)
-            Content.Size = UDim2.new(1,-10,0,0)
-            Content.BackgroundTransparency = 1
-            Content.Parent = Box
-
-            local Layout = Instance.new("UIListLayout", Content)
-            Layout.Padding = UDim.new(0,6)
-
-            Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                Content.Size = UDim2.new(1,-10,0,Layout.AbsoluteContentSize.Y)
-                Box.Size = UDim2.new(1,-10,0,Layout.AbsoluteContentSize.Y + 35)
+            local state = false
+            t.MouseButton1Click:Connect(function()
+                state = not state
+                t.Text = text.." : "..(state and "ON" or "OFF")
+                t.BackgroundColor3 = state and Lib.Theme.Accent or Lib.Theme.Box
+                if callback then callback(state) end
             end)
-
-            local Group = {}
-
-            function Group:Button(text, callback)
-                local Btn = Instance.new("TextButton")
-                Btn.Size = UDim2.new(1,0,0,30)
-                Btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-                Btn.Text = text
-                Btn.Font = Enum.Font.Gotham
-                Btn.TextSize = 14
-                Btn.TextColor3 = Color3.new(1,1,1)
-                Btn.Parent = Content
-
-                Btn.MouseButton1Click:Connect(function()
-                    pcall(callback)
-                end)
-            end
-
-            function Group:Toggle(text, callback)
-                local state = false
-                local Btn = Instance.new("TextButton")
-                Btn.Size = UDim2.new(1,0,0,30)
-                Btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-                Btn.Text = text.." [OFF]"
-                Btn.Font = Enum.Font.Gotham
-                Btn.TextSize = 14
-                Btn.TextColor3 = Color3.fromRGB(200,200,200)
-                Btn.Parent = Content
-
-                Btn.MouseButton1Click:Connect(function()
-                    state = not state
-                    Btn.Text = text.." ["..(state and "ON" or "OFF").."]"
-                    pcall(callback, state)
-                end)
-            end
-
-            function Group:Slider(text, min, max, callback)
-                min = min or 0
-                max = max or 100
-                local value = min
-
-                local Holder = Instance.new("Frame")
-                Holder.Size = UDim2.new(1,0,0,40)
-                Holder.BackgroundTransparency = 1
-                Holder.Parent = Content
-
-                local Label = Instance.new("TextLabel")
-                Label.Size = UDim2.new(1,0,0,18)
-                Label.BackgroundTransparency = 1
-                Label.Text = text..": "..value
-                Label.TextXAlignment = Left
-                Label.Font = Enum.Font.Gotham
-                Label.TextSize = 13
-                Label.TextColor3 = Color3.new(1,1,1)
-                Label.Parent = Holder
-
-                local Bar = Instance.new("Frame")
-                Bar.Size = UDim2.new(1,0,0,10)
-                Bar.Position = UDim2.new(0,0,0,25)
-                Bar.BackgroundColor3 = Color3.fromRGB(50,50,50)
-                Bar.Parent = Holder
-
-                local Fill = Instance.new("Frame")
-                Fill.Size = UDim2.new(0,0,1,0)
-                Fill.BackgroundColor3 = Color3.fromRGB(100,100,255)
-                Fill.Parent = Bar
-
-                local dragging = false
-
-                Bar.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = true
-                    end
-                end)
-
-                UIS.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = false
-                    end
-                end)
-
-                UIS.InputChanged:Connect(function(input)
-                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                        local percent = math.clamp(
-                            (input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X,
-                            0, 1
-                        )
-                        value = math.floor(min + (max - min) * percent)
-                        Fill.Size = UDim2.new(percent,0,1,0)
-                        Label.Text = text..": "..value
-                        pcall(callback, value)
-                    end
-                end)
-            end
-
-            return Group
         end
 
+        -- SLIDER
+        function Tab:AddSlider(text, min, max, callback)
+            local holder = Instance.new("Frame", page)
+            holder.Size = UDim2.new(1,-40,0,60)
+            holder.BackgroundTransparency = 1
+
+            local label = Instance.new("TextLabel", holder)
+            label.Size = UDim2.new(1,0,0,20)
+            label.Text = text..": "..min
+            label.TextColor3 = Lib.Theme.Text
+            label.BackgroundTransparency = 1
+            label.Font = Enum.Font.Gotham
+            label.TextSize = 13
+
+            local bar = Instance.new("Frame", holder)
+            bar.Position = UDim2.new(0,0,0,30)
+            bar.Size = UDim2.new(1,0,0,6)
+            bar.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+
+            local fill = Instance.new("Frame", bar)
+            fill.Size = UDim2.fromScale(0,1)
+            fill.BackgroundColor3 = Lib.Theme.Accent
+            Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
+
+            bar.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.Touch then
+                    local x = math.clamp(
+                        (i.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X,
+                        0,1
+                    )
+                    fill.Size = UDim2.fromScale(x,1)
+                    local val = math.floor(min + (max-min)*x)
+                    label.Text = text..": "..val
+                    if callback then callback(val) end
+                end
+            end)
+        end
+
+        table.insert(Window.Tabs, Tab)
         return Tab
     end
 
     return Window
 end
 
-return UILib
+return Lib
